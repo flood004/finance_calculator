@@ -1,8 +1,8 @@
 # -*- coding: UTF-8 -*-
-import os,sqlite3,time
+import os,sqlite3
 import log_helper
 from io import StringIO
-
+from datetime import datetime
 
 class dbase(object):
 	def __init__(self, dbname, is_output_sql=False):
@@ -10,6 +10,8 @@ class dbase(object):
 		self.cursor = None
 		self.dbname = dbname# 是否将所有要执行的Sql语句输出到日志里
 		self.is_output_sql = is_output_sql
+		self.data=[]
+		self.col=[]
 
 	def open_conn(self):
 		try:
@@ -56,16 +58,16 @@ class dbase(object):
 			log_helper.error('提交事务失败：' + str(e.args))
 			
 	def __exit__(self,type,value,trace):
-		print ("type:", type)
-		print ("value:", value)
-		print ("trace:", trace)
+
+		if (type is not None and value is not None and trace is not None):
+			log_helper.error( "type:"+ str(type) +"value:"+ str(value) + "\ntrace:", str(trace))
 		self.close_conn()
 
 		
 	def get_sql(self, query, vars=None):
 		"""获取编译后的sql语句"""
 		# 记录程序执行开始时间
-		start_time = time.clock()
+		start_time = datetime.now().timestamp()#time.clock()
 		try:
 			# 判断是否记录sql执行语句
 			if self.is_output_sql:
@@ -82,7 +84,7 @@ class dbase(object):
 			# 关闭游标
 			self.cursor.close()
 		# 记录程序执行结束时间
-		end_time = time.clock()
+		end_time = datetime.now().timestamp()
 		# 写入日志
 		self.write_log(start_time, end_time, query)
 
@@ -105,43 +107,45 @@ class dbase(object):
 				self.open_conn()
 				self.cursor=self.connect.cursor()
 			# 执行SQL
-			result = self.cursor.executescript(query, vars)
+			result = self.cursor.executescript(query)
+			
 		except Exception as e:
 			# 将异常写入到日志中
 			log_helper.error('sql执行失败:' + str(e.args) + ' query:' + str(query))
 			self.data = None
 		else:
+			self.commit()
 			# 获取数据
-			try:
-				self.col=[tuple[0] for tuple in cursor.description]
-				if self.cursor.description:
+			#try:
+				#self.col=[tuple[0] for tuple in self.cursor.description]
+				#if self.cursor.description:
 					# 在执行insert/update/delete等更新操作时，如果添加了returning，则读取返回数据组合成字典返回
-					self.data =self.cursor.fetchall() #self.data = [dict((self.cursor.description[i][0], value) for i, value in enumerate(row)) for row in self.cursor.fetchall()]
-				else:
+					#self.data =self.cursor.fetchall() #self.data = [dict((self.cursor.description[i][0], value) for i, value in enumerate(row)) for row in self.cursor.fetchall()]
+				#else:
 					# 如果执行insert/update/delete等更新操作时没有添加returning，则返回影响行数，值为0时表时没有数据被更新
-					self.data = self.cursor.rowcount
-				self.commit()
-			except Exception as e:
+					#self.data = self.cursor.rowcount
+				#self.commit()
+			#except Exception as e:
 				# 将异常写入到日志中
-				log_helper.error('数据获取失败:' + str(e.args) + ' query:' + str(query))
-				self.data = None
-				self.rollback()
-		finally:
+				#log_helper.error('数据获取失败:' + str(e.args) + ' query:' + str(query))
+				#self.data = None
+				#self.rollback()
+		#finally:
 			# 关闭游标
-			self.cursor.close()
+			#self.cursor.close()
 		# 记录程序执行结束时间
 		end_time = datetime.now().timestamp()
 		# 写入日志
 		self.write_log(start_time, end_time, query)
 
 		# 如果有返回数据，则把该数据返回给调用者
-		return self.col,self.data
+		return self.data
 		
-	def sqlite (self,dbname,sql):
-
-		start_time = datetime.now().timestamp()
-		col=[]
+	def sqlite (self,sql):
 		try:
+			start_time = datetime.now().timestamp()
+			col=[]
+
 			if self.connect:
 				self.cursor=self.connect.cursor()
 			else:
@@ -166,15 +170,15 @@ class dbase(object):
 				else:
 					# 如果执行insert/update/delete等更新操作时没有添加returning，则返回影响行数，值为0时表时没有数据被更新
 					data = self.cursor.rowcount
-				self.commit()
+				
 			except Exception as e:
 				# 将异常写入到日志中
 				log_helper.error('数据获取失败:' + str(e.args) + ' query:' + str(sql))
 				data = None
 				self.rollback()
 		finally:
-			# 关闭游标
-			self.close_conn()
+			# 提交并关闭游标,关闭数据库
+			self.commit()#self.cursor.close()#self.close_conn()
 	
 		# 记录程序执行结束时间
 		end_time = datetime.now().timestamp()
