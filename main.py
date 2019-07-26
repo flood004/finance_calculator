@@ -11,7 +11,8 @@ def queryrecord (opcode,tcode,qiu,dname):
 	if idatestr.upper()=='D':
 		idate=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 	elif idatestr.upper()=='Y':
-		
+		a=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+		idate=a.replace(year=a.year, month=1, day=1)
 	else:
 		it=bool(re.search('\d{1,2}:\d{1,2}:\d{1,2}&',idatestr))
 
@@ -166,7 +167,7 @@ def optype(ocode=0,name=mname):
 						print('不存在记录！将直接新增记录！')
 						insert(code=op,date=idate,itype=transactioncode,cycle=ucycle,amt=amount,dbname=name)
 
-		else：
+		else:
 			return()
 
 def main():
