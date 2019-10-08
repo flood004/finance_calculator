@@ -11,7 +11,7 @@ smtp = 'smtp.163.com'
 port = 465
 user = 'flood004@163.com'
 passwd = 'flood004fly'
-email_list = 'flood004@163.com,Henry.ZhangTJ @homecreditcfc.cn'
+email_list = 'flood004@163.com'
 err_title = '系统异常通知-simple-开发'
 
 
