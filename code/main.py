@@ -1,9 +1,8 @@
 # coding=utf-8
-import tkinter as tk,os,pandas,re
+import tkinter as tk,os,pandas,re,sys
 from tkinter import ttk,messagebox,scrolledtext,Menu
 from datetime import datetime
-from db_helper import initialize,table_check
-from texttable import Texttable
+
 from db_helper_w import insert,update,delete,query,initialize,table_check
 
 #OTYP={'查询记录':1,'新增记录':2,'删除记录':3,'修改记录':4,'固定收支记录':5,'非固定收支记录':6,'所有记录':7,'查询可用金额':8}
@@ -54,12 +53,14 @@ class main_win(tk.Tk,object):
 		self.optype=0		#记录类型代码
 		self.opcodetype=0	#操作类型代码
 		self.trancode='N'	#交易类型代码
+		self.Ctrancode='O'  #变更后的交易类型代码 默认为O
 		self.startdate=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 		self.money=0.000
 		self.mw()
 	def dict_q(self,var):
 		return{'查询记录':1,'新增记录':2,'删除记录':3,'修改记录':4,'固定收支记录':1,'非固定收支记录':2,'所有记录':3,'查询可用金额':0,'收入':'I','支出':'C','所有':'A'}.get(var,'NULL')
 	def quit(self):
+		self.destroy()
 		sys.exit()
 	def mw(self):
 		self.mtable=tk.Frame(self).grid(row=0,column=0)
@@ -260,16 +261,37 @@ class main_win(tk.Tk,object):
 					if col=='Error':
 						return ('日期时间格式错误')
 					else:
-						if data:
-							self.scr.delete('1.0','end')
-							self.scr.insert(tk.INSERT,out)
+						if self.trancode in ('I','C','i','c'):
+							if self.optype in (1,2):
 
-							self.scr.insert(tk.INSERT,'=======*********************************=========\n将进行修改，时间为'+str(idate)+'\n'+str(endate)+'\n更改交易类型为'+self.Ctrancode+'\n 修改金额是：'+str(self.money)+'\n=======*********************************=========\n')
-							update(udate=idate,code=self.optype,qtype=self.trancode,itype=self.Ctrancode,qamt=queryamount,amt=self.money,cycle=cyclei,edate=endate,dbname=self.datbase_url)
+								if data:
+									self.scr.delete('1.0','end')
+									self.scr.insert(tk.INSERT,out)
+									if self.Ctrancode in ('I','C','i','c'):
+										itrantype=self.Ctrancode
+									else:
+										itrantype=self.trancode
+									if endate:
+										var_box = tk.messagebox.askyesno(title='系统提示', message='截止日期已输入，是否确定批量修改?')  # 返回'True','False'
+										if var_box==True:
+											self.scr.insert(tk.INSERT,'=======*********************************=========\n将进行修改，时间为'+str(idate)+'到'+str(endate)+'\n更改交易类型为'+itrantype+'\n 修改金额是：'+str(self.money)+'\n=======*********************************=========\n')
+											update(udate=idate,code=self.optype,qtype=self.trancode,itype=itrantype,qamt=queryamount,amt=self.money,cycle=cyclei,edate=endate,dbname=self.datbase_url)
+										else:
+											self.scr.insert(tk.INSERT,'\n操作已取消\n')
+											return('')
+									else:
+										self.scr.insert(tk.INSERT,'=======*********************************=========\n将进行修改，时间为'+str(idate)+'\n更改交易类型为'+itrantype+'\n 修改金额是：'+str(self.money)+'\n=======*********************************=========\n')
+										update(udate=idate,code=self.optype,qtype=self.trancode,itype=itrantype,qamt=queryamount,amt=self.money,cycle=cyclei,edate=endate,dbname=self.datbase_url)
+
+								else:
+									messagebox.showinfo(title ='通知', message ='未查询到结果，将直接插入数据！')
+									insert(code=self.optype,date=idate,itype=self.trancode,cycle=cyclei,amt=self.money,dbname=self.datbase_url)
+									self.scr.insert(tk.INSERT,'记录已成功添加，日期:'+str(idate)+'\n 金额：'+str(self.money)+'交易类型：'+self.trancode+'\n 持续月份：'+str(cyclei)+'\n=======*********************************=========\n')
+							else:
+								messagebox.showwarning('Error', '请选择正确的记录类型！')
 						else:
-							messagebox.showinfo(title ='通知', message ='未查询到结果，将直接插入数据！')
-							insert(code=self.optype,date=idate,itype=self.trancode,cycle=cyclei,amt=self.money,dbname=self.datbase_url)
-							self.scr.insert(tk.INSERT,'记录已成功添加，日期:'+str(idate)+'\n 金额：'+str(self.money)+'交易类型：'+self.trancode+'\n 持续月份：'+str(cyclei)+'\n=======*********************************=========\n')
+							messagebox.showwarning('Error', '请选择交易类型！')
+							
 				else:
 					messagebox.showwarning('Error', '请选择操作类型！')
 			else :
@@ -292,7 +314,7 @@ class main_win(tk.Tk,object):
 		except:
 			return False
 	def queryrecord (self,opcode,tcode,qiu,dname):
-		idatestr=self.sdate.get()
+		idatestr=self.sdate.get().strip()
 		if idatestr.upper()=='D' :
 			self.startdate=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 		elif idatestr.upper()=='Y'or idatestr==''or idatestr is None:
@@ -308,9 +330,9 @@ class main_win(tk.Tk,object):
 				self.startdate=datetime.strptime(idatestr,'%Y-%m-%d').strftime('%Y-%m-%d')+' 00:00:00'#time.strptime(idatestr,'%Y-%m-%d')
 			else:
 				messagebox.showwarning('Error', '请输入正确日期时间！')
-				self.scr.insert(tk.INSERT,str(self.startdate)+'\n'+'it'+str(it)+'\nitd'+str(itd))
+				#self.scr.insert(tk.INSERT,str(self.startdate)+'\n'+'it'+str(it)+'\nitd'+str(itd))
 				qdate='ERROR'
-				return('error',None,qdate,None, 'ERROR, 错误日期格式！')
+				return('ERROR',None,qdate,None, 'ERROR, 错误日期格式！')
 		if opcode==0:
 			if idatestr=='' or idatestr is None:
 				qdate =datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -326,7 +348,16 @@ class main_win(tk.Tk,object):
 				elif endt=='0' or endt=='':
 					endate =None
 				else:
-					endate=datetime.strptime(endt,'%Y-%m-%d').strftime('%Y-%m-%d')+' 23:59:59'
+					eitd=self.is_valid_date(endt)
+					eit=self.is_valid_datetime(endt)
+					if eit==True:
+						endate=datetime.strptime(endt,'%Y-%m-%d %H:%M:%S').strftime('%Y-%m-%d %H:%M:%S')
+					elif eit==False and eitd==True:
+						endate=datetime.strptime(endt,'%Y-%m-%d').strftime('%Y-%m-%d')+' 23:59:59'
+					else:
+						messagebox.showwarning('Error', '请输入正确的截止日期时间！')
+						return('ERROR',None,'ERROR',None, 'ERROR, 截止日期格式错误！')
+						
 			if qiu=='I':
 					endate =None
 
