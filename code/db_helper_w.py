@@ -163,7 +163,7 @@ def query(date,edate,ctype,itype,dbname):  #itype I/N ;type=0 query sum ; type=1
 		elif edate is not None :
 			qsql=("select id,dictid,detailid,cdate,qtype,specific_amount from financial where cdate between '{0}' and '{1}'{2}").format(date,edate,stritype)
 	#print('\n 执行的sql语句：'+qsql+'\n=======')
-
+	qsql=qsql+' order by cdate'
 	with dbase(dbname) as db:	
 		col,data=db.sqlite(qsql)
 		#print(col)
